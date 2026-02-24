@@ -32,6 +32,9 @@ ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 # Install agent-browser and claude-code globally
 RUN npm install -g agent-browser @anthropic-ai/claude-code
 
+# Install Enzyme CLI for vault exploration (install to /usr/local so it's on PATH for all users)
+RUN curl -fsSL enzyme.garden/install.sh | ENZYME_INSTALL_DIR=/usr/local bash -s -- -y
+
 # Create app directory
 WORKDIR /app
 

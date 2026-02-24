@@ -47,7 +47,6 @@ Service management:
 # Sprite VM (current)
 sprite-env services start nanoclaw
 sprite-env services stop nanoclaw
-sprite-env services stop nanoclaw; sprite-env services start nanoclaw --no-stream  # restart
 sprite-env services get nanoclaw          # check status/PID
 
 # macOS (launchd)
@@ -60,6 +59,29 @@ systemctl --user start nanoclaw
 systemctl --user stop nanoclaw
 systemctl --user restart nanoclaw
 ```
+
+### Restarting (Sprite VM)
+
+On shutdown, active agent containers are **detached, not killed** — this preserves in-progress agent work. A clean restart sequence:
+
+```bash
+# 1. Stop the service
+sprite-env services stop nanoclaw
+
+# 2. (Optional) Kill any lingering containers if agents are stuck
+docker ps --format '{{.Names}}' | grep nanoclaw | xargs -r docker kill
+
+# 3. Start fresh (omit --no-stream; it can exit prematurely)
+sprite-env services start nanoclaw
+
+# 4. Verify
+sprite-env services get nanoclaw
+tail -5 /.sprite/logs/services/nanoclaw.log
+```
+
+If docker is unavailable (no `docker.sock`), skip step 2 — detached containers will expire on their own via the 30.5-min hard timeout.
+
+After restart, confirm the Telegram bot reconnected by checking the logs for `Telegram bot: @...` and send a test message.
 
 ## Container Build Cache
 
