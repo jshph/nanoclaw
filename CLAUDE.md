@@ -47,7 +47,7 @@ Service management:
 # Sprite VM (current)
 sprite-env services start nanoclaw
 sprite-env services stop nanoclaw
-sprite-env services restart nanoclaw
+sprite-env services stop nanoclaw; sprite-env services start nanoclaw --no-stream  # restart
 sprite-env services get nanoclaw          # check status/PID
 
 # macOS (launchd)

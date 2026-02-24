@@ -50,7 +50,18 @@ Check the preflight results for `APPLE_CONTAINER` and `DOCKER`, and the PLATFORM
 - DOCKER=installed_not_running → start Docker: `open -a Docker` (macOS) or `sudo systemctl start docker` (Linux). Wait 15s, re-check with `docker info`.
 - DOCKER=not_found → Use `AskUserQuestion: Docker is required for running agents. Would you like me to install it?` If confirmed:
   - macOS: install via `brew install --cask docker`, then `open -a Docker` and wait for it to start. If brew not available, direct to Docker Desktop download at https://docker.com/products/docker-desktop
-  - Linux: install with `curl -fsSL https://get.docker.com | sh && sudo usermod -aG docker $USER`. Note: user may need to log out/in for group membership.
+  - Linux: install with `curl -fsSL https://get.docker.com | sh && sudo usermod -a -G docker $USER`. Note: user may need to log out/in for group membership.
+
+**[Sprite] Post-install Docker fixup:** On Sprite VMs, systemd may not auto-start dockerd and `setfacl` is not available. After installing Docker:
+
+```bash
+# Start dockerd manually (systemd auto-enable may fail on Sprite — that's OK)
+sudo dockerd &>/dev/null & sleep 3
+# Fix socket permissions (setfacl not available, use chmod)
+sudo chmod 666 /var/run/docker.sock
+# Verify
+docker info >/dev/null 2>&1 && echo "DOCKER_OK"
+```
 
 ### 3b. Apple Container conversion gate (if needed)
 
@@ -74,7 +85,15 @@ Run `npx tsx setup/index.ts --step container -- --runtime <chosen>` and parse th
 - Cache issue (stale layers): `docker builder prune -f` (Docker) or `container builder stop && container builder rm && container builder start` (Apple Container). Retry.
 - Dockerfile syntax or missing files: diagnose from the log and fix, then retry.
 
-**If TEST_OK=false but BUILD_OK=true:** The image built but won't run. Check logs — common cause is runtime not fully started. Wait a moment and retry the test.
+**If TEST_OK=false but BUILD_OK=true:** The image built but won't run. Check logs.
+
+**[Sprite] Network namespace error:** On Sprite VMs, Docker's default bridge networking fails with `bind-mount /proc/.../ns/net: permission denied`. This is expected — `container-runner.ts` already uses `--network=host`. Verify the container works manually:
+
+```bash
+docker run --rm --network host nanoclaw-agent:latest node -e "console.log('ok')"
+```
+
+If this prints the agent's "Failed to parse input" error (because no input was piped), the container is working. Proceed.
 
 ## 4. Claude Authentication (No Script)
 
@@ -283,15 +302,17 @@ Replace `USERNAME` with the actual username (from `whoami`). Run the two `sudo` 
 
 Run `npx tsx setup/index.ts --step verify` and parse the status block.
 
+**[Sprite] Expected failures:** The verify script doesn't know about Sprite services, so SERVICE=not_found is expected. WHATSAPP_AUTH=not_found is also expected in TELEGRAM_ONLY mode. Verify the service manually with `sprite-env services get nanoclaw` instead. Focus on CREDENTIALS, REGISTERED_GROUPS, and MOUNT_ALLOWLIST.
+
 **If STATUS=failed, fix each:**
-- SERVICE=stopped → `npm run build`, then restart: `sprite-env services restart nanoclaw` (Sprite) or `launchctl kickstart -k gui/$(id -u)/com.nanoclaw` (macOS) or `systemctl --user restart nanoclaw` (Linux) or `bash start-nanoclaw.sh` (WSL nohup)
-- SERVICE=not_found → re-run step 10
+- SERVICE=stopped → `npm run build`, then restart: `sprite-env services stop nanoclaw; sprite-env services start nanoclaw --no-stream` (Sprite) or `launchctl kickstart -k gui/$(id -u)/com.nanoclaw` (macOS) or `systemctl --user restart nanoclaw` (Linux) or `bash start-nanoclaw.sh` (WSL nohup)
+- SERVICE=not_found → re-run step 10 (on Sprite, check `sprite-env services get nanoclaw` instead)
 - CREDENTIALS=missing → re-run step 4
-- WHATSAPP_AUTH=not_found → re-run step 5 (non-Sprite only)
+- WHATSAPP_AUTH=not_found → re-run step 5 (non-Sprite only; expected on Sprite)
 - REGISTERED_GROUPS=0 → re-run steps 7-8
 - MOUNT_ALLOWLIST=missing → `npx tsx setup/index.ts --step mounts -- --empty`
 
-**[Sprite] Collect chat ID now:** If step 7 was deferred because the service wasn't running, now is the time. The Telegram bot is live — tell the user to send `/chatid` to the bot, then complete steps 7-8 with the returned chat ID. After registering, restart the service: `sprite-env services restart nanoclaw`.
+**[Sprite] Collect chat ID now:** If step 7 was deferred because the service wasn't running, now is the time. The Telegram bot is live — tell the user to send `/chatid` to the bot, then complete steps 7-8 with the returned chat ID. After registering, restart the service: `sprite-env services stop nanoclaw; sprite-env services start nanoclaw --no-stream`.
 
 Tell user to test: send a message in their registered chat. Show: `tail -f logs/nanoclaw.log` (or `/.sprite/logs/services/nanoclaw.log` on Sprite)
 
