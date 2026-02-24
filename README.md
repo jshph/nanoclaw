@@ -26,7 +26,8 @@ sprite console -s nanoclaw
 
 # Inside the Sprite:
 git clone https://github.com/jshph/nanoclaw.git ~/nanoclaw
-cd ~/nanoclaw && claude -p /setup
+cd ~/nanoclaw && claude
+# Then run: /setup
 ```
 
 Claude Code handles everything: Node.js, Docker, Telegram bot creation, container image build, and Sprite service registration. You'll just need to:
