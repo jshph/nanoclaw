@@ -10,6 +10,7 @@ const envConfig = readEnvFile([
   'ASSISTANT_HAS_OWN_NUMBER',
   'TELEGRAM_BOT_TOKEN',
   'TELEGRAM_ONLY',
+  'CONTAINER_RUNTIME',
 ]);
 
 export const ASSISTANT_NAME =
@@ -74,3 +75,6 @@ export const TELEGRAM_BOT_TOKEN =
   process.env.TELEGRAM_BOT_TOKEN || envConfig.TELEGRAM_BOT_TOKEN || '';
 export const TELEGRAM_ONLY =
   (process.env.TELEGRAM_ONLY || envConfig.TELEGRAM_ONLY) === 'true';
+
+export const CONTAINER_RUNTIME =
+  process.env.CONTAINER_RUNTIME || envConfig.CONTAINER_RUNTIME || 'docker';

@@ -16,7 +16,7 @@ import { WhatsAppChannel } from './channels/whatsapp.js';
 import { TelegramChannel } from './channels/telegram.js';
 import {
   ContainerOutput,
-  runContainerAgent,
+  runAgent as runAgentProcess,
   writeGroupsSnapshot,
   writeTasksSnapshot,
 } from './container-runner.js';
@@ -259,7 +259,7 @@ async function runAgent(
     : undefined;
 
   try {
-    const output = await runContainerAgent(
+    const output = await runAgentProcess(
       group,
       {
         prompt,

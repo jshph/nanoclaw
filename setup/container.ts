@@ -67,12 +67,46 @@ export async function run(args: string[]): Promise<void> {
     }
   }
 
-  if (!['apple-container', 'docker'].includes(runtime)) {
+  if (!['apple-container', 'docker', 'host'].includes(runtime)) {
     emitStatus('SETUP_CONTAINER', {
       RUNTIME: runtime, IMAGE: image, BUILD_OK: false, TEST_OK: false,
       STATUS: 'failed', ERROR: 'unknown_runtime', LOG: 'logs/setup.log',
     });
     process.exit(4);
+  }
+
+  // Host mode: skip Docker entirely, build agent-runner directly
+  if (runtime === 'host') {
+    const agentRunnerDir = path.join(projectRoot, 'container', 'agent-runner');
+    let buildOk = false;
+
+    logger.info({ runtime }, 'Building agent-runner for host mode');
+    try {
+      execSync('npm install', {
+        cwd: agentRunnerDir,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      execSync('npm run build', {
+        cwd: agentRunnerDir,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      buildOk = true;
+      logger.info('Agent-runner build succeeded');
+    } catch (err) {
+      logger.error({ err }, 'Agent-runner build failed');
+    }
+
+    emitStatus('SETUP_CONTAINER', {
+      RUNTIME: runtime,
+      IMAGE: 'N/A',
+      BUILD_OK: buildOk,
+      TEST_OK: buildOk,
+      STATUS: buildOk ? 'success' : 'failed',
+      LOG: 'logs/setup.log',
+    });
+
+    if (!buildOk) process.exit(1);
+    return;
   }
 
   const buildCmd = runtime === 'apple-container' ? 'container build' : 'docker build';

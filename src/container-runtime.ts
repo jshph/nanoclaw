@@ -4,6 +4,7 @@
  */
 import { execSync } from 'child_process';
 
+import { CONTAINER_RUNTIME } from './config.js';
 import { logger } from './logger.js';
 
 /** The container runtime binary name. */
@@ -21,6 +22,22 @@ export function stopContainer(name: string): string {
 
 /** Ensure the container runtime is running, starting it if needed. */
 export function ensureContainerRuntimeRunning(): void {
+  if (CONTAINER_RUNTIME === 'host') {
+    // Host mode: verify node and claude are on PATH
+    try {
+      execSync('which node', { stdio: 'pipe' });
+    } catch {
+      throw new Error('Host mode requires node on PATH');
+    }
+    try {
+      execSync('which claude', { stdio: 'pipe' });
+    } catch {
+      throw new Error('Host mode requires claude on PATH');
+    }
+    logger.info('Host mode: node and claude verified on PATH');
+    return;
+  }
+
   try {
     execSync(`${CONTAINER_RUNTIME_BIN} info`, { stdio: 'pipe', timeout: 10000 });
     logger.debug('Container runtime already running');
@@ -70,6 +87,8 @@ export function ensureContainerRuntimeRunning(): void {
 
 /** Kill orphaned NanoClaw containers from previous runs. */
 export function cleanupOrphans(): void {
+  if (CONTAINER_RUNTIME === 'host') return;
+
   try {
     const output = execSync(
       `${CONTAINER_RUNTIME_BIN} ps --filter name=nanoclaw- --format '{{.Names}}'`,
